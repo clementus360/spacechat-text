@@ -15,7 +15,7 @@ func main() {
 
 	router := mux.NewRouter()
 
-	router.HandleFunc("/api/socket", controllers.SocketHandler)
+	router.HandleFunc("/api/socket/{phoneNumber}", controllers.SocketHandler)
 	fmt.Println("test")
 
 	err:=http.ListenAndServe(":3002", router)
