@@ -2,8 +2,8 @@ package services
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
+	"net/http"
 	"os"
 
 	"github.com/gorilla/websocket"
@@ -24,27 +24,34 @@ func ConnectRedis() *redis.Client{
 
 func StoreSocket(conn *websocket.Conn, userId string, rdb *redis.Client, ctx context.Context) error{
 
-	conBytes,err := json.Marshal(conn)
+	err := rdb.Set(ctx, userId, conn.RemoteAddr().String(), 0).Err()
 	if err!=nil {
-		return fmt.Errorf("failed to transform socket to json")
+		return err
 	}
 
-	rdb.Set(ctx, userId, conBytes, 0)
+	fmt.Println(conn.RemoteAddr().String())
 
 	return nil
 }
 
-func GetSocket(userId string, rdb *redis.Client, ctx context.Context) (*websocket.Conn,error) {
+func GetSocket(userId string, rdb *redis.Client, ctx context.Context, req *http.Request) (*websocket.Conn,error) {
 	connString,err := rdb.Get(ctx, userId).Result()
 	if err!=nil {
 		return nil,err
 	}
 
-	var conn *websocket.Conn
-	err=json.Unmarshal([]byte(connString), &conn)
+	dialer := websocket.Dialer{
+		ReadBufferSize: 1024,
+		WriteBufferSize: 1024,
+	}
+
+	fmt.Println("test")
+	conn,res,err := dialer.Dial("ws://"+connString, nil)
 	if err!=nil {
 		return nil,err
 	}
+
+	fmt.Println(res.Body," : ",res.Status)
 
 	return conn,nil
 }

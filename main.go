@@ -1,7 +1,6 @@
 package main
 
 import (
-	"fmt"
 	"log"
 	"net/http"
 
@@ -16,7 +15,6 @@ func main() {
 	router := mux.NewRouter()
 
 	router.HandleFunc("/api/socket/{phoneNumber}", controllers.SocketHandler)
-	fmt.Println("test")
 
 	err:=http.ListenAndServe(":3002", router)
 	if err!=nil {
