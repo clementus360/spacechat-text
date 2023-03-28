@@ -43,12 +43,15 @@ func SocketHandler(res http.ResponseWriter, req *http.Request) {
 
 	// Listen for messages on the socket connection
 	for {
+
+		// Receive a message from remote client and handle errors
 		_,msg,err := conn.ReadMessage()
 		if err!=nil {
 			utils.HandleError(err,"Failed to read message", res, http.StatusInternalServerError)
 			return
 		}
 
+		// Parse the json message into a Message struct
 		var message models.Message
 		err = json.Unmarshal(msg, &message)
 		if err!=nil {
@@ -56,6 +59,7 @@ func SocketHandler(res http.ResponseWriter, req *http.Request) {
 			return
 		}
 
+		// Print the message (for now)
 		fmt.Println(message)
 	}
 
