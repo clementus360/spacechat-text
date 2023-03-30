@@ -18,7 +18,7 @@ func ConnectMQ() (*amqp.Connection, error) {
 	return conn, nil
 }
 
-func CreateChannel(MQConnection *amqp.Connection, ChannelName string) (*amqp.Channel, error) {
+func CreateChannel(MQConnection *amqp.Connection) (*amqp.Channel, error) {
 	ch, err := MQConnection.Channel()
 	if err != nil {
 		return nil, err
