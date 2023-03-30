@@ -16,8 +16,8 @@ func main() {
 
 	router.HandleFunc("/api/socket/{phoneNumber}", controllers.SocketHandler)
 
-	err:=http.ListenAndServe(":3002", router)
-	if err!=nil {
-		log.Fatal("Failed to start server: ",err)
+	err := http.ListenAndServe(":3002", router)
+	if err != nil {
+		log.Fatal("Failed to start server: ", err)
 	}
 }
