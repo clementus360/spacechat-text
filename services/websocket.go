@@ -1,13 +1,16 @@
 package services
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"time"
 
 	"github.com/clementus360/spacechat-text/models"
 	"github.com/clementus360/spacechat-text/utils"
 	"github.com/gorilla/websocket"
+	amqp "github.com/rabbitmq/amqp091-go"
 )
 
 // Upgrade an http connection to a websocket connection
@@ -30,7 +33,7 @@ func WebsocketConnection(res http.ResponseWriter, req *http.Request) (*websocket
 }
 
 // Listen for messages on the socket connection
-func ReceiveMessage(conn *websocket.Conn, res http.ResponseWriter) {
+func ReceiveMessage(conn *websocket.Conn, res http.ResponseWriter, pool *ConnectionPool) {
 	for {
 		// Receive a message from remote client and handle errors
 		_, msg, err := conn.ReadMessage()
@@ -47,7 +50,55 @@ func ReceiveMessage(conn *websocket.Conn, res http.ResponseWriter) {
 			return
 		}
 
+		// Queue message
+		err = QueueMessage(pool, &message)
+		if err != nil {
+			utils.HandleError(err, fmt.Sprintf("Failed to queue message: %v", err), res, http.StatusInternalServerError)
+		}
+
+		fmt.Println("Message has been queued")
+
 		// Print the message (for now)
 		fmt.Println(message)
 	}
+}
+
+func QueueMessage(pool *ConnectionPool, message *models.Message) error {
+	// Get RabbitMQ channnel from pool
+	channel, err := pool.GetChannel()
+	if err != nil {
+		return err
+	}
+
+	defer pool.ReleaseChannel(channel)
+
+	// Check if the queue does not exist to create a new one
+	_, err = channel.QueueDeclarePassive(message.ChatId, false, false, false, false, nil)
+	if err != nil {
+		_, err = channel.QueueDeclare(message.ChatId, false, false, false, false, nil)
+		if err != nil {
+			return err
+		}
+	}
+
+	// Create context
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
+	defer cancel()
+
+	// Queue Message
+	err = channel.PublishWithContext(ctx,
+		"",
+		message.ChatId,
+		false,
+		false,
+		amqp.Publishing{
+			ContentType: "text/plain",
+			Body:        []byte(message.Payload),
+		},
+	)
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
