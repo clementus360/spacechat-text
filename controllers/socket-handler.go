@@ -35,6 +35,7 @@ func SocketHandler(res http.ResponseWriter, req *http.Request) {
 		err = conn.Close()
 		if err != nil {
 			fmt.Println("Failed to close websocket connection")
+			return
 		}
 	}()
 
