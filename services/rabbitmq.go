@@ -2,6 +2,7 @@ package services
 
 import (
 	"errors"
+	"fmt"
 	"os"
 	"sync"
 
@@ -77,6 +78,8 @@ func (pool *ConnectionPool) GetChannel() (*amqp.Channel, error) {
 
 func (pool *ConnectionPool) ReleaseChannel(channel *amqp.Channel) {
 	pool.Mutex.Lock()
+
+	fmt.Println("released")
 	defer pool.Mutex.Unlock()
 
 	pool.Channels = append(pool.Channels, channel)

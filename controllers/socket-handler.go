@@ -31,16 +31,21 @@ func SocketHandler(pool *services.ConnectionPool) http.HandlerFunc {
 			return
 		}
 
-		// Make sure that the socket will close to avoid leaks
-		defer func() {
-			err = conn.Close()
-			if err != nil {
-				fmt.Println("Failed to close websocket connection")
-				return
-			}
+		// Create a channel to prevent the socket from closing
+		done := make(chan struct{})
+
+		go func() {
+			defer close(done)
+			services.ReceiveMessage(conn, res, pool)
 		}()
 
-		go services.ReceiveMessage(conn, res)
+		// Make sure that the socket will close after the channel is closed to avoid leaks
+		<-done
+		err = conn.Close()
+		if err != nil {
+			fmt.Println("Failed to close websocket connection")
+			return
+		}
 
 	}
 }

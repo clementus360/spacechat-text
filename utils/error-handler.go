@@ -7,5 +7,5 @@ import (
 
 func HandleError(err error, msg string, res http.ResponseWriter, status int) {
 	fmt.Println(msg, ": ", err)
-	http.Error(res, msg, status)
+	// http.Error(res, msg, status)
 }

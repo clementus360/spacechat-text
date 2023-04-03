@@ -18,9 +18,12 @@ func WebsocketConnection(res http.ResponseWriter, req *http.Request) (*websocket
 	var upgrader = websocket.Upgrader{
 		ReadBufferSize:  1024,
 		WriteBufferSize: 1024,
+		// CheckOrigin: func(r *http.Request) bool {
+		// 	fmt.Println(r.Header.Get("Origin"))
+		// 	return r.Header.Get("Origin") == "http://127.0.0.1:5500"
+		// },
 		CheckOrigin: func(r *http.Request) bool {
-			fmt.Println(r.Header.Get("Origin"))
-			return r.Header.Get("Origin") == "http://127.0.0.1:5500"
+			return true
 		},
 	}
 
@@ -54,6 +57,7 @@ func ReceiveMessage(conn *websocket.Conn, res http.ResponseWriter, pool *Connect
 		err = QueueMessage(pool, &message)
 		if err != nil {
 			utils.HandleError(err, fmt.Sprintf("Failed to queue message: %v", err), res, http.StatusInternalServerError)
+			return
 		}
 
 		fmt.Println("Message has been queued")
@@ -73,12 +77,10 @@ func QueueMessage(pool *ConnectionPool, message *models.Message) error {
 	defer pool.ReleaseChannel(channel)
 
 	// Check if the queue does not exist to create a new one
-	_, err = channel.QueueDeclarePassive(message.ChatId, false, false, false, false, nil)
+
+	_, err = channel.QueueDeclare(message.ChatId, false, false, false, false, nil)
 	if err != nil {
-		_, err = channel.QueueDeclare(message.ChatId, false, false, false, false, nil)
-		if err != nil {
-			return err
-		}
+		return err
 	}
 
 	// Create context
@@ -97,6 +99,7 @@ func QueueMessage(pool *ConnectionPool, message *models.Message) error {
 		},
 	)
 	if err != nil {
+		fmt.Println("testgo")
 		return err
 	}
 

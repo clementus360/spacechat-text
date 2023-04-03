@@ -12,29 +12,31 @@ import (
 	"github.com/gorilla/mux"
 )
 
-var pool *services.ConnectionPool
+var poolInstance *services.ConnectionPool
 var once sync.Once
 
 func GetConnectionPool() *services.ConnectionPool {
 	once.Do(func() {
-		pool = &services.ConnectionPool{
-			MaxConnections:           1,
-			MaxChannelsPerConnection: 5,
+		poolInstance = &services.ConnectionPool{
+			MaxConnections:           5,
+			MaxChannelsPerConnection: 10,
 		}
-		if err := pool.InitializePool(); err != nil {
+		if err := poolInstance.InitializePool(); err != nil {
 			panic(fmt.Sprintf("Failed to initialize the connection pool: %v", err))
 		}
 	})
 
-	return pool
+	return poolInstance
 }
 
 func main() {
 	config.LoadEnv()
 
+	pool := GetConnectionPool()
+
 	router := mux.NewRouter()
 
-	router.HandleFunc("/api/socket/{phoneNumber}", controllers.SocketHandler)
+	router.HandleFunc("/api/socket/{phoneNumber}", controllers.SocketHandler(pool))
 
 	err := http.ListenAndServe(":3002", router)
 	if err != nil {
