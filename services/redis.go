@@ -3,7 +3,6 @@ package services
 import (
 	"context"
 	"fmt"
-	"net/http"
 	"os"
 
 	"github.com/gorilla/websocket"
@@ -38,7 +37,7 @@ func StoreSocket(conn *websocket.Conn, userId string, rdb *redis.Client, ctx con
 }
 
 // Getting the remote socket from redis and retrieve the websocket connection
-func GetSocket(userId string, rdb *redis.Client, ctx context.Context, req *http.Request) (*websocket.Conn, error) {
+func GetSocket(userId string, rdb *redis.Client, ctx context.Context) (*websocket.Conn, error) {
 
 	// Get the connection string from redis
 	connString, err := rdb.Get(ctx, userId).Result()
@@ -61,4 +60,14 @@ func GetSocket(userId string, rdb *redis.Client, ctx context.Context, req *http.
 	fmt.Println(res.Body, " : ", res.Status)
 
 	return conn, nil
+}
+
+// Delete a socket from redis
+func DeleteSocket(userId string, rdb *redis.Client, ctx context.Context) error {
+	err := rdb.Del(ctx, userId).Err()
+	if err != nil {
+		return err
+	}
+
+	return nil
 }

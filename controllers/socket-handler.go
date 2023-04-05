@@ -31,6 +31,17 @@ func SocketHandler(pool *services.ConnectionPool) http.HandlerFunc {
 			return
 		}
 
+		// Delete socket from redis if the connection is closed
+		conn.SetCloseHandler(func(code int, text string) error {
+			err := services.DeleteSocket(phoneNumber, rdb, context.Background())
+			if err != nil {
+				utils.HandleError(err, "Failed to delete socket", res, http.StatusInternalServerError)
+				return err
+			}
+
+			return nil
+		})
+
 		// Create a channel to prevent the socket from closing
 		done := make(chan struct{})
 
