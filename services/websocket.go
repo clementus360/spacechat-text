@@ -11,6 +11,7 @@ import (
 	"github.com/clementus360/spacechat-text/utils"
 	"github.com/gorilla/websocket"
 	amqp "github.com/rabbitmq/amqp091-go"
+	"github.com/redis/go-redis/v9"
 )
 
 // Upgrade an http connection to a websocket connection
@@ -36,7 +37,7 @@ func WebsocketConnection(res http.ResponseWriter, req *http.Request) (*websocket
 }
 
 // Listen for messages on the socket connection
-func ReceiveMessage(conn *websocket.Conn, res http.ResponseWriter, pool *ConnectionPool) {
+func ReceiveMessage(conn *websocket.Conn, res http.ResponseWriter, pool *ConnectionPool, rdb *redis.Client) {
 	for {
 		// Receive a message from remote client and handle errors
 		_, msg, err := conn.ReadMessage()
@@ -50,6 +51,19 @@ func ReceiveMessage(conn *websocket.Conn, res http.ResponseWriter, pool *Connect
 		err = json.Unmarshal(msg, &message)
 		if err != nil {
 			utils.HandleError(err, "Failed to parse json", res, http.StatusInternalServerError)
+			return
+		}
+
+		// Send messages directly
+		conn, err := GetSocket(message.Receiver, rdb, context.Background())
+		if err != nil {
+			utils.HandleError(err, "Failed to get Connection from redis", res, http.StatusInternalServerError)
+			return
+		}
+
+		err = conn.WriteJSON(message)
+		if err != nil {
+			utils.HandleError(err, "Failed to send message through socket", res, http.StatusInternalServerError)
 			return
 		}
 
@@ -77,7 +91,6 @@ func QueueMessage(pool *ConnectionPool, message *models.Message) error {
 	defer pool.ReleaseChannel(channel)
 
 	// Check if the queue does not exist to create a new one
-
 	_, err = channel.QueueDeclare(message.ChatId, false, false, false, false, nil)
 	if err != nil {
 		return err

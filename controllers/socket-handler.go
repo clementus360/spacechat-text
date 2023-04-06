@@ -47,7 +47,7 @@ func SocketHandler(pool *services.ConnectionPool) http.HandlerFunc {
 
 		go func() {
 			defer close(done)
-			services.ReceiveMessage(conn, res, pool)
+			services.ReceiveMessage(conn, res, pool, rdb)
 		}()
 
 		// Make sure that the socket will close after the channel is closed to avoid leaks
