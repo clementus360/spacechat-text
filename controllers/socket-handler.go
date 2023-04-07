@@ -33,6 +33,7 @@ func SocketHandler(pool *services.ConnectionPool) http.HandlerFunc {
 
 		// Delete socket from redis if the connection is closed
 		conn.SetCloseHandler(func(code int, text string) error {
+			fmt.Println("closed?")
 			err := services.DeleteSocket(phoneNumber, rdb, context.Background())
 			if err != nil {
 				utils.HandleError(err, "Failed to delete socket", res, http.StatusInternalServerError)

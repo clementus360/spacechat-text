@@ -54,18 +54,18 @@ func ReceiveMessage(conn *websocket.Conn, res http.ResponseWriter, pool *Connect
 			return
 		}
 
-		// Send messages directly
-		conn, err := GetSocket(message.Receiver, rdb, context.Background())
-		if err != nil {
-			utils.HandleError(err, "Failed to get Connection from redis", res, http.StatusInternalServerError)
-			return
-		}
+		// // Send messages directly
+		// conn2, err := GetSocket(message.Receiver, rdb, context.Background())
+		// if err != nil {
+		// 	utils.HandleError(err, "Failed to get Connection from redis", res, http.StatusInternalServerError)
+		// 	return
+		// }
 
-		err = conn.WriteJSON(message)
-		if err != nil {
-			utils.HandleError(err, "Failed to send message through socket", res, http.StatusInternalServerError)
-			return
-		}
+		// err = conn2.WriteJSON(message)
+		// if err != nil {
+		// 	utils.HandleError(err, "Failed to send message through socket", res, http.StatusInternalServerError)
+		// 	return
+		// }
 
 		// Queue message
 		err = QueueMessage(pool, &message)
@@ -90,8 +90,28 @@ func QueueMessage(pool *ConnectionPool, message *models.Message) error {
 
 	defer pool.ReleaseChannel(channel)
 
+	// Declare exchange
+	err = channel.ExchangeDeclare(
+		"chat_messages",
+		"topic",
+		true,
+		false,
+		false,
+		false,
+		nil,
+	)
+	if err != nil {
+		return err
+	}
+
 	// Check if the queue does not exist to create a new one
-	_, err = channel.QueueDeclare(message.ChatId, false, false, false, false, nil)
+	q, err := channel.QueueDeclare(message.Sender, false, false, false, false, nil)
+	if err != nil {
+		return err
+	}
+
+	// Bind queue to exchange
+	err = channel.QueueBind(q.Name, "user."+message.Sender, "chat_messages", false, nil)
 	if err != nil {
 		return err
 	}
@@ -102,8 +122,8 @@ func QueueMessage(pool *ConnectionPool, message *models.Message) error {
 
 	// Queue Message
 	err = channel.PublishWithContext(ctx,
-		"",
-		message.ChatId,
+		"chat_messages",
+		"user."+message.Receiver,
 		false,
 		false,
 		amqp.Publishing{
@@ -111,6 +131,7 @@ func QueueMessage(pool *ConnectionPool, message *models.Message) error {
 			Body:        []byte(message.Payload),
 		},
 	)
+
 	if err != nil {
 		fmt.Println("testgo")
 		return err
