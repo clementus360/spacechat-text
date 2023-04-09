@@ -104,21 +104,15 @@ func QueueMessage(pool *ConnectionPool, message *models.Message) error {
 		return err
 	}
 
-	// Check if the queue does not exist to create a new one
-	q, err := channel.QueueDeclare(message.Sender, false, false, false, false, nil)
-	if err != nil {
-		return err
-	}
-
-	// Bind queue to exchange
-	err = channel.QueueBind(q.Name, "user."+message.Sender, "chat_messages", false, nil)
-	if err != nil {
-		return err
-	}
-
 	// Create context
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
 	defer cancel()
+
+	// Marshal message
+	messageBytes, err := json.Marshal(message)
+	if err != nil {
+		return err
+	}
 
 	// Queue Message
 	err = channel.PublishWithContext(ctx,
@@ -127,14 +121,37 @@ func QueueMessage(pool *ConnectionPool, message *models.Message) error {
 		false,
 		false,
 		amqp.Publishing{
-			ContentType: "text/plain",
-			Body:        []byte(message.Payload),
+			ContentType: "application/json",
+			Body:        messageBytes,
 		},
 	)
 
 	if err != nil {
 		fmt.Println("testgo")
 		return err
+	}
+
+	return nil
+}
+
+func RelayMessage(queue string, conn *websocket.Conn, pool *ConnectionPool) error {
+	channel, err := pool.GetChannel()
+	if err != nil {
+		return err
+	}
+
+	defer pool.ReleaseChannel(channel)
+
+	msgs, err := channel.Consume(queue, "", true, false, false, false, nil)
+	if err != nil {
+		return err
+	}
+
+	for msg := range msgs {
+		err := conn.WriteMessage(websocket.TextMessage, msg.Body)
+		if err != nil {
+			return err
+		}
 	}
 
 	return nil

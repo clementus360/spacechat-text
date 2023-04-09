@@ -43,8 +43,17 @@ func SocketHandler(pool *services.ConnectionPool) http.HandlerFunc {
 			return nil
 		})
 
+		// Initialize a rabbitmq Queue
+		queue, err := services.InitializeQueue(phoneNumber)
+		if err != nil {
+			utils.HandleError(err, "Failed to initialize the queue", res, http.StatusInternalServerError)
+			return
+		}
+
 		// Create a channel to prevent the socket from closing
 		done := make(chan struct{})
+
+		go services.RelayMessage(queue, conn, pool)
 
 		go func() {
 			defer close(done)

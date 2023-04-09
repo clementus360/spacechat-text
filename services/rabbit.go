@@ -2,7 +2,6 @@ package services
 
 import (
 	"errors"
-	"fmt"
 	"os"
 	"sync"
 
@@ -79,8 +78,31 @@ func (pool *ConnectionPool) GetChannel() (*amqp.Channel, error) {
 func (pool *ConnectionPool) ReleaseChannel(channel *amqp.Channel) {
 	pool.Mutex.Lock()
 
-	fmt.Println("released")
 	defer pool.Mutex.Unlock()
 
 	pool.Channels = append(pool.Channels, channel)
+}
+
+func InitializeQueue(userId string) (string, error) {
+	conn, err := ConnectMQ()
+	if err != nil {
+		return "", nil
+	}
+
+	channel, err := CreateChannel(conn)
+	if err != nil {
+		return "", nil
+	}
+
+	queue, err := channel.QueueDeclare(userId, false, false, false, false, nil)
+	if err != nil {
+		return "", nil
+	}
+
+	err = channel.QueueBind(queue.Name, "user."+userId, "chat_messages", false, nil)
+	if err != nil {
+		return "", nil
+	}
+
+	return queue.Name, nil
 }
