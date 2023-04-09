@@ -46,6 +46,7 @@ func ReceiveMessage(conn *websocket.Conn, res http.ResponseWriter, pool *Connect
 			return
 		}
 
+		fmt.Println(msg)
 		// Parse the json message into a Message struct
 		var message models.Message
 		err = json.Unmarshal(msg, &message)
