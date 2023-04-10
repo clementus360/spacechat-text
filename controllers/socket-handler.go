@@ -12,10 +12,23 @@ import (
 
 func SocketHandler(pool *services.ConnectionPool) http.HandlerFunc {
 	return func(res http.ResponseWriter, req *http.Request) {
-		// Get the userId(Phone number) from thhe request parameters
+
+		// Get the userId(Phone number) from the request parameters
 		vars := mux.Vars(req)
 		phoneNumber := vars["phoneNumber"]
 		rdb := services.ConnectRedis()
+
+		// AUTH_URI := os.Getenv("AUTH_URI")
+
+		// // Get token from the request
+		// jwtToken := req.Header.Get("Authorization")
+		// resp, err := http.Get(fmt.Sprintf("%v/auth/%v", AUTH_URI, jwtToken))
+		// if err != nil {
+		// 	utils.HandleError(err, "Failed to connect to authorization service", res, http.StatusInternalServerError)
+		// 	return
+		// }
+
+		// fmt.Println(resp.Body)
 
 		// Create a new websocket connection
 		conn, err := services.WebsocketConnection(res, req)

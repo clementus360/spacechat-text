@@ -19,11 +19,16 @@ func WebsocketConnection(res http.ResponseWriter, req *http.Request) (*websocket
 	var upgrader = websocket.Upgrader{
 		ReadBufferSize:  1024,
 		WriteBufferSize: 1024,
-		// CheckOrigin: func(r *http.Request) bool {
-		// 	fmt.Println(r.Header.Get("Origin"))
-		// 	return r.Header.Get("Origin") == "http://127.0.0.1:5500"
-		// },
+
+		// Add a blacklist so I can block some IPs
 		CheckOrigin: func(r *http.Request) bool {
+			disallowedOrigins := []string{"http://example.com", "https://example2.com"}
+			origin := r.Header.Get("Origin")
+			for _, disallowed := range disallowedOrigins {
+				if disallowed == origin {
+					return false
+				}
+			}
 			return true
 		},
 	}
@@ -46,7 +51,6 @@ func ReceiveMessage(conn *websocket.Conn, res http.ResponseWriter, pool *Connect
 			return
 		}
 
-		fmt.Println(msg)
 		// Parse the json message into a Message struct
 		var message models.Message
 		err = json.Unmarshal(msg, &message)
