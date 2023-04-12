@@ -1,7 +1,6 @@
 package controllers
 
 import (
-	"context"
 	"fmt"
 	"net/http"
 	"os"
@@ -18,9 +17,6 @@ func SocketHandler(pool *services.ConnectionPool) http.HandlerFunc {
 		// Get the userId(Phone number) from the request parameters
 		vars := mux.Vars(req)
 		phoneNumber := vars["phoneNumber"]
-
-		// Initialize redis connection
-		rdb := services.ConnectRedis()
 
 		AUTH_URI := os.Getenv("AUTH_URI")
 
@@ -46,25 +42,6 @@ func SocketHandler(pool *services.ConnectionPool) http.HandlerFunc {
 			return
 		}
 
-		// Store the socket using the userId(Phone number) as the key
-		err = services.StoreSocket(conn, phoneNumber, rdb, context.Background())
-		if err != nil {
-			utils.HandleError(err, "Failed to save socket to redis", res, http.StatusInternalServerError)
-			return
-		}
-
-		// Delete socket from redis if the connection is closed
-		conn.SetCloseHandler(func(code int, text string) error {
-			fmt.Println("closed?")
-			err := services.DeleteSocket(phoneNumber, rdb, context.Background())
-			if err != nil {
-				utils.HandleError(err, "Failed to delete socket", res, http.StatusInternalServerError)
-				return err
-			}
-
-			return nil
-		})
-
 		// Initialize a rabbitmq Queue
 		queue, err := services.InitializeQueue(phoneNumber)
 		if err != nil {
@@ -79,7 +56,7 @@ func SocketHandler(pool *services.ConnectionPool) http.HandlerFunc {
 
 		go func() {
 			defer close(done)
-			services.ReceiveMessage(conn, res, pool, rdb)
+			services.ReceiveMessage(conn, res, pool)
 		}()
 
 		// Make sure that the socket will close after the channel is closed to avoid leaks
