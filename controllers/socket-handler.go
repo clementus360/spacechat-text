@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net/http"
 	"os"
+	"strings"
 
 	"github.com/clementus360/spacechat-text/services"
 	"github.com/clementus360/spacechat-text/utils"
@@ -25,16 +26,18 @@ func SocketHandler(pool *services.ConnectionPool) http.HandlerFunc {
 
 		ticket := req.URL.Query().Get("ticket")
 
-		fmt.Println(ticket)
-
-		// Get token from the request
-		resp, err := http.Get(fmt.Sprintf("%v/authorize/%v/%v", AUTH_URI, phoneNumber, ticket))
+		resp, err := http.Post(fmt.Sprintf("%v/authorize/%v", AUTH_URI, phoneNumber), "application/x-www-form-urlencoded", strings.NewReader(ticket))
 		if err != nil {
 			utils.HandleError(err, "Failed to connect to authorization service", res, http.StatusInternalServerError)
 			return
 		}
 
-		fmt.Println(resp.Status)
+		fmt.Println(resp.StatusCode, "=?", http.StatusOK)
+
+		if resp.StatusCode != http.StatusOK {
+			utils.HandleError(fmt.Errorf("failed to authorize the user"), "Failed to authorize the user", res, http.StatusUnauthorized)
+			return
+		}
 
 		// Create a new websocket connection
 		conn, err := services.WebsocketConnection(res, req)
