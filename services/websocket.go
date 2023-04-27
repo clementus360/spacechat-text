@@ -42,6 +42,7 @@ func WebsocketConnection(res http.ResponseWriter, req *http.Request) (*websocket
 
 // Listen for messages on the socket connection
 func ReceiveMessage(conn *websocket.Conn, res http.ResponseWriter, pool *ConnectionPool) {
+	fmt.Println("testy")
 	for {
 		// Receive a message from remote client and handle errors
 		_, msg, err := conn.ReadMessage()

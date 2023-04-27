@@ -22,6 +22,8 @@ func SocketHandler(pool *services.ConnectionPool) http.HandlerFunc {
 
 		ticket := req.URL.Query().Get("ticket")
 
+		fmt.Println(ticket)
+
 		resp, err := http.Post(fmt.Sprintf("%v/authorize/%v", AUTH_URI, phoneNumber), "application/x-www-form-urlencoded", strings.NewReader(ticket))
 		if err != nil {
 			utils.HandleError(err, "Failed to connect to authorization service", res, http.StatusInternalServerError)
@@ -61,6 +63,8 @@ func SocketHandler(pool *services.ConnectionPool) http.HandlerFunc {
 
 		// Make sure that the socket will close after the channel is closed to avoid leaks
 		<-done
+
+		fmt.Println("is it?")
 		err = conn.Close()
 		if err != nil {
 			fmt.Println("Failed to close websocket connection")
