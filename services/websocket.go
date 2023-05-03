@@ -42,7 +42,6 @@ func WebsocketConnection(res http.ResponseWriter, req *http.Request) (*websocket
 
 // Listen for messages on the socket connection
 func ReceiveMessage(conn *websocket.Conn, res http.ResponseWriter, pool *ConnectionPool) {
-	fmt.Println("testy")
 	for {
 		// Receive a message from remote client and handle errors
 		_, msg, err := conn.ReadMessage()
@@ -134,7 +133,23 @@ func RelayMessage(queue string, conn *websocket.Conn, pool *ConnectionPool) erro
 
 	defer pool.ReleaseChannel(channel)
 
-	msgs, err := channel.Consume(queue, "", true, false, false, false, nil)
+	// Create a channel to signal when the WebSocket connection is closed
+	connClosed := make(chan struct{})
+
+	// Set up event listeners for the WebSocket connection
+	conn.SetCloseHandler(func(code int, text string) error {
+		fmt.Println("WebSocket connection closed")
+		close(connClosed)
+		return nil
+	})
+
+	go func() {
+		<-connClosed // Wait for the WebSocket connection to close
+		fmt.Println("WebSocket connection closed. Cancelling consumer...")
+		channel.Cancel(queue, false)
+	}()
+
+	msgs, err := channel.Consume(queue, queue, true, false, false, false, nil)
 	if err != nil {
 		return err
 	}

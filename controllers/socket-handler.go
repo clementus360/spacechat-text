@@ -44,6 +44,8 @@ func SocketHandler(pool *services.ConnectionPool) http.HandlerFunc {
 			return
 		}
 
+		fmt.Println("PHONE NUMBER:  ", phoneNumber)
+
 		// Initialize a rabbitmq Queue
 		queue, err := services.InitializeQueue(phoneNumber)
 		if err != nil {
@@ -54,6 +56,8 @@ func SocketHandler(pool *services.ConnectionPool) http.HandlerFunc {
 		// Create a channel to prevent the socket from closing
 		done := make(chan struct{})
 
+		fmt.Println(queue)
+
 		go services.RelayMessage(queue, conn, pool)
 
 		go func() {
@@ -63,8 +67,6 @@ func SocketHandler(pool *services.ConnectionPool) http.HandlerFunc {
 
 		// Make sure that the socket will close after the channel is closed to avoid leaks
 		<-done
-
-		fmt.Println("is it?")
 		err = conn.Close()
 		if err != nil {
 			fmt.Println("Failed to close websocket connection")
