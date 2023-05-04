@@ -149,6 +149,20 @@ func RelayMessage(queue string, conn *websocket.Conn, pool *ConnectionPool) erro
 		channel.Cancel(queue, false)
 	}()
 
+	go func() {
+		for {
+			_, _, err := conn.ReadMessage()
+			if err != nil {
+				if !websocket.IsCloseError(err, websocket.CloseGoingAway) {
+					// Handle errors that aren't caused by the WebSocket connection closing
+					fmt.Println("WebSocket read error:", err)
+				}
+				close(connClosed)
+				return
+			}
+		}
+	}()
+
 	msgs, err := channel.Consume(queue, queue, true, false, false, false, nil)
 	if err != nil {
 		return err
