@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"sync"
 	"time"
 
 	"github.com/clementus360/spacechat-text/models"
@@ -57,6 +58,8 @@ func ReceiveMessage(conn *websocket.Conn, res http.ResponseWriter, pool *Connect
 			utils.HandleError(err, "Failed to parse json", res, http.StatusInternalServerError)
 			return
 		}
+
+		fmt.Println("received message:", message)
 
 		// Queue message
 		err = QueueMessage(pool, &message)
@@ -135,45 +138,44 @@ func RelayMessage(queue string, conn *websocket.Conn, pool *ConnectionPool) erro
 
 	// Create a channel to signal when the WebSocket connection is closed
 	connClosed := make(chan struct{})
+	var closeOnce sync.Once
 
 	// Set up event listeners for the WebSocket connection
 	conn.SetCloseHandler(func(code int, text string) error {
 		fmt.Println("WebSocket connection closed")
-		close(connClosed)
+		closeOnce.Do(func() {
+			close(connClosed)
+		})
 		return nil
 	})
 
-	go func() {
-		<-connClosed // Wait for the WebSocket connection to close
-		fmt.Println("WebSocket connection closed. Cancelling consumer...")
-		channel.Cancel(queue, false)
-	}()
-
-	go func() {
-		for {
-			_, _, err := conn.ReadMessage()
-			if err != nil {
-				if !websocket.IsCloseError(err, websocket.CloseGoingAway) {
-					// Handle errors that aren't caused by the WebSocket connection closing
-					fmt.Println("WebSocket read error:", err)
-				}
-				close(connClosed)
-				return
-			}
-		}
-	}()
-
-	msgs, err := channel.Consume(queue, queue, true, false, false, false, nil)
+	// Start a goroutine to read messages from the queue
+	msgs, err := channel.Consume(queue, queue, false, false, false, false, nil)
 	if err != nil {
 		return err
 	}
 
-	for msg := range msgs {
-		err := conn.WriteMessage(websocket.TextMessage, msg.Body)
-		if err != nil {
-			return err
+	go func() {
+		for msg := range msgs {
+			err := conn.WriteMessage(websocket.TextMessage, msg.Body)
+			if err != nil {
+				fmt.Println("WebSocket write error:", err)
+				break
+			}
+			msg.Ack(false)
+			fmt.Println("relayed message:", msg)
 		}
-	}
+		closeOnce.Do(func() {
+			close(connClosed)
+		})
+	}()
+
+	// Start a goroutine to check for WebSocket connection closure
+	go func() {
+		<-connClosed
+		fmt.Println("WebSocket connection closed. Cancelling consumer...")
+		channel.Cancel(queue, false)
+	}()
 
 	return nil
 }
